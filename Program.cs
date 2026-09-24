@@ -1,6 +1,7 @@
 
 using Microsoft.EntityFrameworkCore;
 using TodoApi.Data;
+using TodoApi.Services;
 
 namespace TodoApi
 {
@@ -13,6 +14,9 @@ namespace TodoApi
             // Add services to the container.
             builder.Services.AddDbContext<TodoApiContext>(options =>
                 options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+            // Register the TodoService for dependency injection
+            builder.Services.AddScoped<ITodoService, TodoService>();
 
             builder.Services.AddControllers();
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle

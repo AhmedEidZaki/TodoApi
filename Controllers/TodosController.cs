@@ -1,8 +1,9 @@
-﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TodoApi.Data;
 using TodoApi.DTO;
+using TodoApi.Services;
 
 namespace TodoApi.Controllers
 {
@@ -10,30 +11,33 @@ namespace TodoApi.Controllers
     [ApiController]
     public class TodosController : ControllerBase
     {
-        private readonly TodoApiContext _context;
+        private readonly ITodoService _todoService;
 
-        public TodosController(TodoApiContext context)
+
+        public TodosController(ITodoService todoService)
         {
-            _context = context;
+            _todoService = todoService;
         }
 
         // GET: api/Todos
         [HttpGet]
         public async Task<IActionResult> GetAllTodos()
         {
-            var todos = await _context.Todos.ToListAsync();
-            return Ok(todos);
+            var todos = await _todoService.GetTodosAsync();
+            return Ok(todos);   
         }
 
         // GET: api/Todos/id
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetTodo(int id)
         {
-            var todo = await _context.Todos.FindAsync(id);
+            var todo = await _todoService.GetTodoAsync(id);
+
             if (todo == null)
             {
                 return NotFound();
             }
+
             return Ok(todo);
         }
 
@@ -41,10 +45,7 @@ namespace TodoApi.Controllers
         [HttpGet("search")]
         public async Task<IActionResult> Search([FromQuery] string title)
         {
-            var todos = await _context.Todos
-                .Where(t => t.Title.Contains(title))
-                .ToListAsync();
-
+            var todos = await _todoService.SearchAsync(title);
             return Ok(todos);
         }
 
@@ -52,15 +53,7 @@ namespace TodoApi.Controllers
         [HttpPost]
         public async Task<IActionResult> CreateTodo(CreateTodoDto Todo)
         {
-            var newTodo = new Model.Todo
-            {
-                Title = Todo.Title,
-                Description = Todo.Description,
-                IsCompleted = Todo.IsCompleted,
-                CreatedAt = DateTime.UtcNow
-            };
-             await _context.Todos.AddAsync(newTodo);
-             await _context.SaveChangesAsync();
+            var newTodo = await _todoService.CreateTodoAsync(Todo);
 
             return CreatedAtAction(nameof(GetTodo), new { id = newTodo.Id }, newTodo);
         }
@@ -69,17 +62,26 @@ namespace TodoApi.Controllers
         [HttpPut("{id:int}")]
         public async Task<IActionResult> UpdateTodo(int id, [FromBody] UpdateTodoDto todoupdate)
         {
-            var todo = await _context.Todos.FindAsync(id);
+            var todo = await _todoService.UpdateTodoAsync(id, todoupdate);
+
             if (todo == null)
             {
                 return NotFound();
             }
 
-            todo.Title = todoupdate.Title;
-            todo.Description = todoupdate.Description;
-            todo.IsCompleted = todoupdate.IsCompleted;
+            return NoContent();
+        }
 
-            await _context.SaveChangesAsync();
+        //PATCH: api/Todos/id/complete
+        [HttpPatch("{id:int}/complete")]
+        public async Task<IActionResult> CompleteTodo(int id)
+        {
+            var success = await _todoService.CompleteTodoAsync(id);
+
+            if (!success)
+            {
+                return NotFound();
+            }
 
             return NoContent();
         }
@@ -88,15 +90,12 @@ namespace TodoApi.Controllers
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> DeleteTodo(int id)
         {
-            var todo = await _context.Todos.FindAsync(id);
-            if (todo == null)
+            var todo = await _todoService.DeleteTodoAsync(id);
+
+            if(!todo)
             {
                 return NotFound();
             }
-
-            _context.Todos.Remove(todo);
-            await _context.SaveChangesAsync();
-
             return NoContent();
         }
     }
